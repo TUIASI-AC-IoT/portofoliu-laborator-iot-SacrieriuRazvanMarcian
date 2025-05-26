@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>File Manager</title>
+</head>
+<body>
+    <h1>File Manager</h1>
+
+    <h2>List Files</h2>
+    <button onclick="listFiles()">List Files</button>
+    <pre id="fileList"></pre>
+
+    <h2>DisplayFile</h2>
+    Filename: <input id="displayFilename"><br>
+    <button onclick="displayFile()">Display content</button>
+    <pre id="displayResult"></pre>
+
+    <h2>Create File</h2>
+    Filename: <input id="createFilename"><br>
+    Content: <textarea id="createContent"></textarea><br>
+    <button onclick="createFile()">Create</button>
+    <pre id="createResult"></pre>
+
+    <h2>Update File</h2>
+    Filename: <input id="updateFilename"><br>
+    New Content: <textarea id="updateContent"></textarea><br>
+    <button onclick="updateFile()">Update</button>
+    <pre id="updateResult"></pre>
+
+    <h2>Delete File</h2>
+    Filename: <input id="deleteFilename"><br>
+    <button onclick="deleteFile()">Delete</button>
+    <pre id="deleteResult"></pre>
+
+    <script>
+        async function listFiles() {
+            try {
+                const response = await fetch('/files');
+                const data = await response.json();
+                document.getElementById('fileList').innerText = JSON.stringify(data, null, 2);
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        async function createFile() {
+            const filename = document.getElementById('createFilename').value;
+            const content = document.getElementById('createContent').value;
+            try {
+                const response = await fetch('/files', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ filename, content })
+                });
+                const data = await response.json();
+                document.getElementById('createResult').innerText = JSON.stringify(data, null, 2);
+            } catch (error) {
+                console.error(error);
+            }
+        }
+        async function displayFile() {
+            const filename=document.getElementById('displayFilename').value;
+            try{
+                const response = await fetch(`/files/${filename}`);
+                const data=await response.json();
+                document.getElementById('displayResult').innerText=JSON.stringify(data,null,2);
+
+            }catch(error){
+                console.error(error);
+            }
+            
+        }
+        async function updateFile() {
+            const filename = document.getElementById('updateFilename').value;
+            const content = document.getElementById('updateContent').value;
+            try {
+                const response = await fetch(`/files/${filename}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ content })
+                });
+                const data = await response.json();
+                document.getElementById('updateResult').innerText = JSON.stringify(data, null, 2);
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        async function deleteFile() {
+            const filename = document.getElementById('deleteFilename').value;
+            try {
+                const response = await fetch(`/files/${filename}`, { method: 'DELETE' });
+                const data = await response.json();
+                document.getElementById('deleteResult').innerText = JSON.stringify(data, null, 2);
+            } catch (error) {
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>
