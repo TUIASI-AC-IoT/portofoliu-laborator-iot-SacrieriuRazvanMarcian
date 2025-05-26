@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sensor Manager</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 20px; }
+  #sensor-list li { cursor: pointer; color: blue; text-decoration: underline; }
+  #sensor-list li:hover { color: darkblue; }
+  #output { white-space: pre-wrap; border: 1px solid #ccc; padding: 10px; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<h1>Sensor Manager</h1>
+
+<div>
+  <h2>Login</h2>
+  <input type="text" id="username" placeholder="Username" />
+  <input type="password" id="password" placeholder="Password" />
+  <button onclick="login()">Login</button>
+</div>
+
+<div id="auth-section" style="display:none;">
+  <h2>Sensors</h2>
+  <button onclick="listSensors()">List Sensors</button>
+  <button onclick="generateSensors()">Generate Sensors</button>
+  <ul id="sensor-list"></ul>
+
+  <h3>Add Sensor</h3>
+  <input type="text" id="new-sensor-type" placeholder="Type" />
+  <button onclick="addSensor()">Add Sensor</button>
+
+  <h3>Update Sensor</h3>
+  <input type="text" id="update-sensor-id" placeholder="Sensor ID" />
+  <input type="text" id="update-sensor-type" placeholder="Type" />
+  <input type="text" id="update-sensor-timestamp" placeholder="Timestamp" />
+  <button onclick="updateSensor()">Update Sensor</button>
+
+  <h3>Delete Sensor</h3>
+  <input type="text" id="delete-sensor-id" placeholder="Sensor ID" />
+  <button onclick="deleteSensor()">Delete Sensor</button>
+
+  <h3>Sensor Config Content</h3>
+  <div id="output">Click a sensor to see its config here.</div>
+  <button onclick="logout()">Logout</button>
+</div>
+
+<script>
+  let token = '';
+
+  async function login() {
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+
+    const res = await fetch('/auth', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username, password})
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      token = data.access_token;
+      alert('Logged in successfully!');
+      document.getElementById('auth-section').style.display = 'block';
+    } else {
+      alert('Login failed: ' + (data.msg || 'Unknown error'));
+    }
+  }
+  async function logout() {
+  if (!token) return alert('Not logged in');
+
+  const res = await fetch('/auth/jwtStore', {
+    method: 'DELETE',
+    headers: {
+      'Authorization': 'Bearer ' + token
+    }
+  });
+
+  if (res.ok) {
+    alert('Logged out successfully');
+    token = '';
+    document.getElementById('auth-section').style.display = 'none';
+  } else {
+    const data = await res.json();
+    alert('Logout failed: ' + (data.msg || 'Unknown error'));
+  }
+}
+
+
+  async function listSensors() {
+    if (!token) return alert('Login first!');
+
+    const res = await fetch('/sensors', {
+      headers: {'Authorization': 'Bearer ' + token}
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      const list = document.getElementById('sensor-list');
+      list.innerHTML = '';
+      data.sensors.forEach(sensor => {
+        const li = document.createElement('li');
+        li.textContent = sensor;
+        li.onclick = () => getSensorContent(sensor);
+        list.appendChild(li);
+      });
+    } else {
+      alert('Error listing sensors: ' + (data.msg || 'Unknown error'));
+    }
+  }
+
+  async function getSensorContent(sensorId) {
+    if (!token) return alert('Login first!');
+
+    const res = await fetch(`/sensors/${sensorId}`, {
+      headers: {'Authorization': 'Bearer ' + token}
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      document.getElementById('output').textContent = data.config;
+    } else {
+      alert('Error getting sensor config: ' + (data.msg || 'Unknown error'));
+    }
+  }
+
+  async function addSensor() {
+    if (!token) return alert('Login first!');
+    const type = document.getElementById('new-sensor-type').value.trim();
+    if (!type) return alert('Enter a sensor type');
+
+    const res = await fetch('/sensors', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({type, timestamp: new Date().toISOString()})
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      alert(data.msg);
+      listSensors();
+    } else {
+      alert('Error adding sensor: ' + (data.msg || 'Unknown error'));
+    }
+  }
+  async function updateSensor() {
+  if (!token) return alert('Login first!');
+  const sensorId = document.getElementById('update-sensor-id').value.trim();
+  const type = document.getElementById('update-sensor-type').value.trim();
+  const timestamp = document.getElementById('update-sensor-timestamp').value.trim();
+
+  if (!sensorId) {
+    alert('Please enter the Sensor ID to update');
+    return;
+  }
+
+  
+  const response = await fetch(`/sensors/${sensorId}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ type, timestamp })
+  });
+
+  const data = await response.json();
+  if (response.ok) {
+    alert(`Sensor ${sensorId} updated successfully`);
+    listSensors();
+  } else {
+    alert(data.msg || 'Failed to update sensor');
+  }
+}
+  async function deleteSensor() {
+    if (!token) return alert('Login first!');
+    const sensorId = document.getElementById('delete-sensor-id').value.trim();
+    if (!sensorId) return alert('Enter sensor ID to delete');
+
+    const res = await fetch(`/sensors/${sensorId}`, {
+      method: 'DELETE',
+      headers: {'Authorization': 'Bearer ' + token}
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      alert(data.msg);
+      listSensors();
+    } else {
+      alert('Error deleting sensor: ' + (data.msg || 'Unknown error'));
+    }
+  }
+
+  async function generateSensors() {
+    if (!token) return alert('Login first!');
+
+    const count = prompt('How many sensors to generate?', '5');
+    if (!count || isNaN(count)) return alert('Please enter a valid number');
+
+    const res = await fetch('/generate_sensors', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({count: parseInt(count)})
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      alert(data.msg);
+      listSensors();
+    } else {
+      alert('Error generating sensors: ' + (data.msg || 'Unknown error'));
+    }
+  }
+</script>
+
+</body>
+</html>
