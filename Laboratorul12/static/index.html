@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sensor Manager</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 20px; }
+  #sensor-list li { cursor: pointer; color: blue; text-decoration: underline; }
+  #sensor-list li:hover { color: darkblue; }
+  #output { white-space: pre-wrap; border: 1px solid #ccc; padding: 10px; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<h1>Sensor Manager</h1>
+
+<div>
+  <button onclick="listSensors()">List Sensors</button>
+  <button onclick="generateSensors()">Generate Sensors</button>
+  <ul id="sensor-list"></ul>
+
+  <h3>Add Sensor</h3>
+  <input type="text" id="new-sensor-type" placeholder="Type" />
+  <button onclick="addSensor()">Add Sensor</button>
+
+  <h3>Update Sensor</h3>
+  <input type="text" id="update-sensor-id" placeholder="Sensor ID" />
+  <input type="text" id="update-sensor-type" placeholder="Type" />
+  <input type="text" id="update-sensor-timestamp" placeholder="Timestamp" />
+  <button onclick="updateSensor()">Update Sensor</button>
+
+  <h3>Delete Sensor</h3>
+  <input type="text" id="delete-sensor-id" placeholder="Sensor ID" />
+  <button onclick="deleteSensor()">Delete Sensor</button>
+
+  <h3>Sensor Config Content</h3>
+  <div id="output">Click a sensor to see its config here.</div>
+</div>
+
+<script>
+  async function listSensors() {
+    const res = await fetch('/sensors');
+    const data = await res.json();
+    if (res.ok) {
+      const list = document.getElementById('sensor-list');
+      list.innerHTML = '';
+      data.sensors.forEach(sensor => {
+        const li = document.createElement('li');
+        li.textContent = sensor;
+        li.onclick = () => getSensorContent(sensor);
+        list.appendChild(li);
+      });
+    } else {
+      alert('Error listing sensors: ' + (data.message || 'Unknown error'));
+    }
+  }
+
+  async function getSensorContent(sensorId) {
+    const res = await fetch(`/sensors/${sensorId}`);
+    const data = await res.json();
+    if (res.ok) {
+      if (typeof data.config === 'string') {
+        document.getElementById('output').textContent = data.config;
+      } else {
+        document.getElementById('output').textContent = JSON.stringify(data.config, null, 2);
+      }
+    } else {
+      alert('Error getting sensor config: ' + (data.message || 'Unknown error'));
+    }
+  }
+
+  async function addSensor() {
+    const type = document.getElementById('new-sensor-type').value.trim();
+    if (!type) return alert('Enter a sensor type');
+
+    const res = await fetch('/sensors', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({type, timestamp: new Date().toISOString()})
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      alert(data.message || data.msg || 'Sensor added');
+      listSensors();
+    } else {
+      alert('Error adding sensor: ' + (data.message || data.msg || 'Unknown error'));
+    }
+  }
+
+  async function updateSensor() {
+    const sensorId = document.getElementById('update-sensor-id').value.trim();
+    const type = document.getElementById('update-sensor-type').value.trim();
+    const timestamp = document.getElementById('update-sensor-timestamp').value.trim();
+
+    if (!sensorId) {
+      alert('Please enter the Sensor ID to update');
+      return;
+    }
+
+    const res = await fetch(`/sensors/${sensorId}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({type, timestamp})
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      alert(data.message || data.msg || `Sensor ${sensorId} updated`);
+      listSensors();
+    } else {
+      alert('Error updating sensor: ' + (data.message || data.msg || 'Unknown error'));
+    }
+  }
+
+  async function deleteSensor() {
+    const sensorId = document.getElementById('delete-sensor-id').value.trim();
+    if (!sensorId) return alert('Enter sensor ID to delete');
+
+    const res = await fetch(`/sensors/${sensorId}`, {
+      method: 'DELETE'
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      alert(data.message || data.msg || `Sensor ${sensorId} deleted`);
+      listSensors();
+    } else {
+      alert('Error deleting sensor: ' + (data.message || data.msg || 'Unknown error'));
+    }
+  }
+
+  async function generateSensors() {
+    const count = prompt('How many sensors to generate?', '5');
+    if (!count || isNaN(count)) return alert('Please enter a valid number');
+
+    const res = await fetch('/generate_sensors', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({count: parseInt(count)})
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      alert(data.message || data.msg || 'Sensors generated');
+      listSensors();
+    } else {
+      alert('Error generating sensors: ' + (data.message || data.msg || 'Unknown error'));
+    }
+  }
+
+</script>
+
+</body>
+</html>
